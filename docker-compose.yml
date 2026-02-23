@@ -1,0 +1,96 @@
+# =============================================================================
+# Claude Code with Network Filtering Proxy
+# =============================================================================
+#
+# Usage: PROJECT_NAME=my-project PROJECT_PATH=/path/to/project docker-compose up
+# Or use the claude.sh wrapper script: ./claude.sh my-project
+#
+# Architecture:
+#   claude-code container --> shared squid-proxy --> internet (filtered)
+#
+# The proxy only allows connections to whitelisted domains required for
+# Claude Code operation (Anthropic API, GitHub, npm, etc.)
+#
+# =============================================================================
+
+services:
+  # Squid proxy for domain-based egress filtering (shared across all projects)
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.proxy
+    container_name: claude-shared-proxy
+    platform: linux/arm64
+    restart: unless-stopped
+    networks:
+      - claude-network
+    # No ports exposed to host - only accessible within docker network
+    healthcheck:
+      test: ['CMD-SHELL', 'nc -z localhost 3128 || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # Claude Code container
+  claude:
+    build:
+      context: .
+      dockerfile: Dockerfile.claude
+    container_name: ${PROJECT_NAME:-default}
+    platform: linux/arm64
+    working_dir: /${PROJECT_NAME:-project}
+    stdin_open: true
+    tty: true
+    mem_limit: 4g
+    cpus: 2
+    depends_on:
+      proxy:
+        condition: service_healthy
+    environment:
+      # Route all traffic through the proxy
+      - HTTP_PROXY=http://claude-shared-proxy:3128
+      - HTTPS_PROXY=http://claude-shared-proxy:3128
+      - http_proxy=http://claude-shared-proxy:3128
+      - https_proxy=http://claude-shared-proxy:3128
+      # Bypass proxy for localhost
+      - NO_PROXY=localhost,127.0.0.1
+      - no_proxy=localhost,127.0.0.1
+      # Disable telemetry and error reporting
+      - DISABLE_TELEMETRY=1
+      - DISABLE_ERROR_REPORTING=1
+      - CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+      # Terminal - inherit from host, fallback to xterm-256color
+      - TERM=${TERM:-xterm-256color}
+    networks:
+      - claude-network
+    volumes:
+      # Project directory (read-heavy, use cached)
+      - ${PROJECT_PATH:-.}:/${PROJECT_NAME:-project}:cached
+      # fp project data (read/write, use delegated)
+      - ${PROJECT_PATH:-.}/.fp:/${PROJECT_NAME:-project}/.fp:delegated
+      # Shared settings (write-heavy, use delegated)
+      - ~/.claude:/root/.claude:delegated
+      - ~/.config:/root/.config:delegated
+      - ~/.claude.json:/root/.claude.json:delegated
+      - ~/.credentials.json:/root/.credentials.json:delegated
+      # fp (issue tracker) - share projects and config with host; bin stays from image (Linux binary)
+      - ~/.fiberplane/projects:/root/.fiberplane/projects:delegated
+      - ~/.fiberplane/projects.toml:/root/.fiberplane/projects.toml:delegated
+      # macOS temp directory - enables drag-and-drop screenshots
+      # Read-only since Claude only needs to read these files
+      - /var/folders:/var/folders:ro
+      # User screenshots folder - mounted at same path as host so dragged paths work
+      - ~/Screenshots:${HOME}/Screenshots:ro
+      # Docker socket - allows Claude to run docker/docker-compose commands
+      # Security note: This gives container access to host's Docker daemon
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Claude skills (project-level)
+      - ./skills:/${PROJECT_NAME:-project}/.claude/skills:ro
+      # Git configuration for commits
+      - ~/.gitconfig:/root/.gitconfig:ro
+
+networks:
+  claude-network:
+    name: claude-network
+    external: true

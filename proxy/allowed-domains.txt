@@ -1,0 +1,40 @@
+# =============================================================================
+# Allowed Domains for Claude Code
+# =============================================================================
+#
+# This file contains the domains that Claude Code needs to function.
+# Squid uses regex matching, so we use patterns to match subdomains.
+#
+# Format: One domain pattern per line (regex supported)
+# Lines starting with # are comments
+#
+# =============================================================================
+
+# Anthropic API and services
+\.anthropic\.com$
+
+# GitHub (for git operations, gh CLI, API)
+\.github\.com$
+\.githubusercontent\.com$
+\.githubassets\.com$
+
+# NPM Registry (for Node.js packages/skills)
+\.npmjs\.org$
+\.npmjs\.com$
+\.npmmirror\.com$
+
+# Sentry (error reporting)
+\.sentry\.io$
+
+# Node.js (for version checks/updates)
+\.nodejs\.org$
+
+# MCP servers
+\.svelte\.dev$
+
+# Claude domains (API, installer, platform)
+\.claude\.ai$
+\.claude\.com$
+claude\.ai$
+claude\.com$
+

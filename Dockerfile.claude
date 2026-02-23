@@ -1,0 +1,68 @@
+# =============================================================================
+# Claude Code Docker Container
+# =============================================================================
+#
+# SETUP:
+#   Place this file and claude.sh in a parent directory containing your
+#   project folders:
+#
+#      parent/
+#      ├── claude.sh           (runner script)
+#      ├── Dockerfile.claude   (this file)
+#      ├── your-project/       (project folder)
+#      └── other-project/      (another project folder)
+#
+# USAGE:
+#   ./claude.sh <project-directory-name>
+#   ./claude.sh <project-directory-name> --build   # Force rebuild image
+#
+# Example:
+#   ./claude.sh your-project
+#
+# The image is built automatically on first run.
+#
+# PERFORMANCE:
+#   - Uses node:22-slim base for smaller image and optimized Node.js
+#   - Native ARM64 support for Apple Silicon (M1/M2/M3) - no Rosetta emulation
+#   - Container limited to 4GB RAM / 2 CPUs (configurable in claude.sh)
+#   - Uses :cached/:delegated mount flags for better macOS performance
+#
+# =============================================================================
+
+FROM node:22-slim
+
+# Install essential tools (Node.js already included in base image)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git curl ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /tmp/* /var/tmp/*
+
+# Install Docker CLI (for running docker/docker-compose in projects)
+RUN curl -fsSL https://get.docker.com | sh && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code using native installer (npm method is deprecated)
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
+# Install fp CLI (agent-native issue tracking)
+# Set PATH so the installer's post-install step (and our check) can run fp in this layer
+RUN export PATH="/root/.fiberplane/bin:$PATH" && \
+    curl -fsSL https://setup.fp.dev/install.sh | sh -s && \
+    /root/.fiberplane/bin/fp --version
+
+# Pre-install Svelte MCP server (avoids download on each run)
+RUN npm install -g @sveltejs/mcp
+
+# Add Claude Code and fp to PATH (ENV for container processes, bashrc for interactive shells)
+ENV PATH="/root/.local/bin:/root/.fiberplane/bin:$PATH"
+RUN echo 'export PATH="/root/.local/bin:/root/.fiberplane/bin:$PATH"' >> /root/.bashrc
+
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Working directory is set at runtime via docker run -w flag
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["claude"]

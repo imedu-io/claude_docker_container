@@ -1,0 +1,4 @@
+# Docker build artifacts
+.docker/
+.env
+.fp/

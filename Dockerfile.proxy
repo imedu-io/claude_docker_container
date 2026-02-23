@@ -1,0 +1,37 @@
+# =============================================================================
+# Squid Proxy for Claude Code Network Filtering
+# =============================================================================
+#
+# This proxy container filters outbound connections from Claude Code,
+# only allowing access to whitelisted domains required for operation.
+#
+# =============================================================================
+
+FROM ubuntu:24.04
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        squid \
+        netcat-openbsd \
+        ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy allowlist and Squid configuration
+COPY proxy/allowed-domains.txt /etc/squid/allowed-domains.txt
+COPY proxy/squid.conf /etc/squid/squid.conf
+
+# Create cache and log directories; proxy user needs write access
+RUN mkdir -p /var/spool/squid /var/log/squid && \
+    chown -R proxy:proxy /var/spool/squid /var/log/squid
+
+# Initialize cache directory
+RUN squid -z --foreground 2>/dev/null || true
+
+COPY proxy/entrypoint-proxy.sh /entrypoint-proxy.sh
+RUN chmod +x /entrypoint-proxy.sh
+
+EXPOSE 3128
+
+ENTRYPOINT ["/entrypoint-proxy.sh"]
+CMD ["squid", "-N", "-f", "/etc/squid/squid.conf"]
