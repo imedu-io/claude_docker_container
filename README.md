@@ -32,10 +32,60 @@ All Claude containers share a single proxy instance for efficient resource usage
 
 ## Installation
 
-1. Clone or copy all files to a project directory (e.g. ~/development/claude_docker_container)
-2. Create project folders as siblings:
+1. Install Claude code on your host machine (to initialize the local configurations and settings in ~/.claude): <https://code.claude.com/docs/en/setup>
 
+2. Add this to you ~/.claude/settings.json
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(fp:*)"
+    ],
+    "deny": [
+      "Bash(curl:*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env.*)",
+      "Read(**/.env)",
+      "Read(./.cursorignore)",
+      "Read(./.cursorrules)",
+      "Read(./.gitignore)",
+      "Read(./.git)",
+      "Read(./.vscode)",
+      "Read(./.idea)",
+      "Read(./secrets/**)",
+      "Read(./.config/**)",
+      "Read(./config/credentials.json)",
+      "Read(./build)"
+    ]
+  },
+  "enabledPlugins": {
+    "fp@fiberplane-claude-code-plugins": true
+  }
+}
 ```
+
+3. To enable OPTION+ENTER for newlines: create the file `~/.claude/keybindings.json` with the following content.
+
+```json
+{
+  "bindings": [
+    {
+      "context": "Chat",
+      "bindings": {
+        "alt+enter": "chat:newline"
+      }
+    }
+  ]
+}
+```
+
+4. Clone or copy all files to a project directory (e.g. ~/development/claude_docker_container)
+
+5. Create project folders as siblings:
+
+```text
 claude_docker_container/
 ├── claude.sh              # Runner script
 ├── docker-compose.yml     # Container orchestration
@@ -49,7 +99,7 @@ your-project/          # Your project folder
 other-project/         # Another project folder
 ```
 
-3. Make the script executable:
+6. Make the script executable:
 
 ```bash
 chmod +x claude.sh
@@ -66,16 +116,26 @@ chmod +x claude.sh
 ### Examples
 
 ```bash
-./claude.sh my-project
-./claude.sh webapp
+./claude.sh ../my-project
+./claude.sh ../my-other-project
+```
+
+Or just create an executable bash script in your parent project-folder like the one below, if you don't want to move into the project folder everytime:
+
+```bash
+# !/bin/bash
+cd ~/development/claude_docker_container && ./claude.sh "../$1"
 ```
 
 ### Rebuild Docker Images
 
-Use the `--build` flag to force a rebuild of all Docker images:
+Use the `--build` flag to force a rebuild of all Docker images. Use `--build-proxy` or `--build-claude` to only build those containers.
 
 ```bash
 ./claude.sh my-project --build
+./claude.sh my-project --build-claude
+./claude.sh my-project --build-proxy
+
 ```
 
 ## How It Works
@@ -92,10 +152,16 @@ The proxy starts once and remains running for all subsequent sessions. Multiple 
 ## Included Tools
 
 ### Claude Code
+
 The AI coding assistant CLI from Anthropic.
 
 ### fp (Issue Tracking)
+
 [fp](https://fp.dev) is an agent-native issue tracking CLI designed for Claude Code.
+
+### svelte mcp (code linter)
+
+Optional and included during the claude-container build because I mostly Svelte, but you can add more MCP's if you like. 
 
 #### How it works
 
@@ -105,6 +171,7 @@ fp is integrated into the container in two layers:
 2. **Host data mounted at runtime** — The `projects` directory and `projects.toml` file from `~/.fiberplane/` on your host are mounted into the container. This means the container uses the same project registry and issue data as your host, so fp issues are accessible from both environments.
 
 The relevant volume mounts in `docker-compose.yml`:
+
 ```yaml
 - ~/.fiberplane/projects:/root/.fiberplane/projects:delegated
 - ~/.fiberplane/projects.toml:/root/.fiberplane/projects.toml:delegated
@@ -121,25 +188,16 @@ On first container run, fp's Claude plugin is automatically configured via the e
 
 ## Network Security
 
-The proxy container filters all outbound traffic. Only connections to whitelisted domains are permitted:
+The proxy container filters all outbound traffic. Only connections to whitelisted domains are permitted. See `allowed-domains.txt`.
 
-| Domain | Purpose |
-|--------|---------|
-| `*.anthropic.com` | Claude API |
-| `*.github.com` | Git operations |
-| `*.githubusercontent.com` | GitHub raw content |
-| `*.npmjs.org` | NPM packages |
-| `*.statsig.com` | Telemetry |
-| `*.sentry.io` | Error reporting |
-| `*.visualstudio.com` | VS Code integration |
-| `*.fp.dev` | fp issue tracking |
+All network attempts are loggin (along with their state: DENIED OR ALLOWED) on std-out, and in /var/log/squid/access.log.
 
 ### Adding Domains
 
 To allow additional domains, edit `proxy/allowed-domains.txt` and rebuild:
 
 ```bash
-./claude.sh my-project --build
+./claude.sh my-project --build-proxy
 ```
 
 ## Features
@@ -148,7 +206,7 @@ To allow additional domains, edit `proxy/allowed-domains.txt` and rebuild:
 - **Multi-Project Support** - Run Claude Code against multiple project directories
 - **Shared Proxy** - Single proxy instance serves all containers efficiently
 - **Automatic Image Building** - Builds Docker images automatically on first run
-- **Persistent Configuration** - Settings saved in `claude-shared-settings/`
+- **Persistent Configuration** - Uses the settings from your host
 - **Isolated Environments** - Each project runs in its own container
 - **fp Integration** - Agent-native issue tracking pre-configured
 - **Resource Limits** - Containers limited to 4GB RAM and 2 CPUs
@@ -159,22 +217,14 @@ The container has access to specific directories on your Mac for sharing files w
 
 | Host Path | Container Path | Use Case |
 |-----------|----------------|----------|
-| `/var/folders/...` | `/var/folders/...` | Drag-and-drop screenshots |
-| `~/Screenshots` | `/Screenshots` | Persistent screenshots folder |
-
-### Drag-and-Drop Screenshots (Recommended)
-
-When you take a screenshot on macOS (Cmd+Shift+4), you can drag the thumbnail directly into the terminal. The path will work automatically:
-
-```
-> Read this screenshot /var/folders/zw/.../Screenshot 2024-01-15.png
-```
+| `/var/folders/...` | `/var/folders/...` | Drag-and-drop your screenshots directly from the preview (=> this is not working yet) |
+| `~/Screenshots` | `/Screenshots` | To upload screenshots into Claude Code. Assumes your screenshots are save to ~/Screenshots |
 
 ### Using ~/Screenshots Folder
 
-If you save screenshots to `~/Screenshots`, reference them as:
+If you save screenshots to `~/Screenshots` simply drag and drop them from the finder window, or reference them as:
 
-```
+```text
 > Analyze /Screenshots/my-screenshot.png
 ```
 
@@ -216,6 +266,7 @@ Docker Desktop on macOS runs containers inside a Linux VM. This project uses opt
 ### Resource Limits
 
 Containers are limited to prevent runaway resource usage:
+
 - Memory: 4GB
 - CPUs: 2 cores
 
@@ -230,6 +281,7 @@ claude:
 ### Large Projects
 
 For very large codebases:
+
 1. Use `.dockerignore` to exclude `node_modules`, build artifacts, etc.
 2. Increase resource limits if needed
 3. Use Docker's VirtioFS backend (Docker Desktop Settings > General)
@@ -245,7 +297,6 @@ For very large codebases:
 | `entrypoint.sh` | First-run fp setup |
 | `proxy/allowed-domains.txt` | Whitelisted domains (regex) |
 | `proxy/squid.conf` | Squid configuration |
-| `settings.json` | Example Claude Code settings |
 
 ## Managing the Shared Proxy
 
@@ -284,6 +335,7 @@ docker start claude-shared-proxy
 If Claude Code can't reach required services, check if the domain is in `proxy/allowed-domains.txt`.
 
 View proxy logs:
+
 ```bash
 docker logs claude-shared-proxy
 ```
@@ -291,11 +343,13 @@ docker logs claude-shared-proxy
 ### Proxy Not Starting
 
 Check proxy health:
+
 ```bash
 docker inspect claude-shared-proxy --format='{{.State.Health.Status}}'
 ```
 
 If unhealthy, check logs and restart:
+
 ```bash
 docker logs claude-shared-proxy
 docker restart claude-shared-proxy
@@ -304,6 +358,7 @@ docker restart claude-shared-proxy
 ### Rebuilding After Changes
 
 Always rebuild after modifying Dockerfiles or proxy config:
+
 ```bash
 ./claude.sh my-project --build
 ```
