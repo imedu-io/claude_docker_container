@@ -43,7 +43,8 @@ RUN curl -fsSL https://get.docker.com | sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Claude Code using native installer (npm method is deprecated)
-RUN curl -fsSL https://claude.ai/install.sh | bash
+# Important: be carefull with latest releases, things break (like the newline keybinding in 2.1.50). Use stable or install a specific version.
+RUN curl -fsSL https://claude.ai/install.sh | bash -s stable
 
 # Install fp CLI (agent-native issue tracking)
 # Set PATH so the installer's post-install step (and our check) can run fp in this layer

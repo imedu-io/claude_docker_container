@@ -74,6 +74,7 @@ services:
       - ~/.config:/root/.config:delegated
       - ~/.claude.json:/root/.claude.json:delegated
       - ~/.credentials.json:/root/.credentials.json:delegated
+      - ~/.claude/keybindings.json:/root/.claude/keybindings.json:ro
       # fp (issue tracker) - share projects and config with host; bin stays from image (Linux binary)
       - ~/.fiberplane/projects:/root/.fiberplane/projects:delegated
       - ~/.fiberplane/projects.toml:/root/.fiberplane/projects.toml:delegated
