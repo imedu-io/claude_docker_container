@@ -1,4 +1,4 @@
-# Claude Code Container Runner
+# Claude Code Docker Container
 
 A Docker-based solution for running Anthropic's Claude Code CLI in isolated, containerized environments.
 
