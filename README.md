@@ -48,6 +48,7 @@ All Claude containers share a single proxy instance for efficient resource usage
       "Read(./.env.*)",
       "Read(**/.env.*)",
       "Read(**/.env)",
+      "Bash(*.env*)"
       "Read(./.cursorignore)",
       "Read(./.cursorrules)",
       "Read(./.gitignore)",
