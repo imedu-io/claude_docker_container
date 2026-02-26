@@ -10,7 +10,7 @@ This project provides a secure way to run Claude Code against multiple projects 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    claude-network                            │
+│                    claude-network                           │
 │  ┌──────────────┐                                           │
 │  │ project-A    │─────┐                                     │
 │  └──────────────┘     │     ┌──────────────────────────┐    │
