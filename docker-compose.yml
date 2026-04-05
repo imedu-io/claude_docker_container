@@ -59,7 +59,6 @@ services:
       # Disable telemetry and error reporting
       - DISABLE_TELEMETRY=1
       - DISABLE_ERROR_REPORTING=1
-      - CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
       # Terminal - inherit from host, fallback to xterm-256color
       - TERM=${TERM:-xterm-256color}
     networks:
@@ -67,27 +66,32 @@ services:
     volumes:
       # Project directory (read-heavy, use cached)
       - ${PROJECT_PATH:-.}:/${PROJECT_NAME:-project}:cached
+
       # fp project data (read/write, use delegated)
       - ${PROJECT_PATH:-.}/.fp:/${PROJECT_NAME:-project}/.fp:delegated
+
       # Shared settings (write-heavy, use delegated)
       - ~/.claude:/root/.claude:delegated
-      - ~/.config:/root/.config:delegated
       - ~/.claude.json:/root/.claude.json:delegated
-      - ~/.credentials.json:/root/.credentials.json:delegated
+
+      # Readonly config files - to prevent that claude updates it's own settings
       - ~/.claude/keybindings.json:/root/.claude/keybindings.json:ro
+      - ~/.claude/settings.json:/root/.claude/settings.json:ro
+
       # fp (issue tracker) - share projects and config with host; bin stays from image (Linux binary)
       - ~/.fiberplane/projects:/root/.fiberplane/projects:delegated
       - ~/.fiberplane/projects.toml:/root/.fiberplane/projects.toml:delegated
-      # macOS temp directory - enables drag-and-drop screenshots
-      # Read-only since Claude only needs to read these files
-      - /var/folders:/var/folders:ro
+  
       # User screenshots folder - mounted at same path as host so dragged paths work
       - ~/Screenshots:${HOME}/Screenshots:ro
+  
       # Docker socket - allows Claude to run docker/docker-compose commands
       # Security note: This gives container access to host's Docker daemon
       - /var/run/docker.sock:/var/run/docker.sock
+  
       # Claude skills (project-level)
-      - ./skills:/${PROJECT_NAME:-project}/.claude/skills:ro
+      #- ./skills:/${PROJECT_NAME:-project}/.claude/skills:ro
+  
       # Git configuration for commits
       - ~/.gitconfig:/root/.gitconfig:ro
 

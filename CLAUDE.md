@@ -62,4 +62,4 @@ To add domains, edit `proxy/allowed-domains.txt` and rebuild with `--build`.
 - Claude container routes all HTTP/HTTPS through the proxy container
 - Containers named `<project>` and `<project>-proxy`
 
-@.fp/FP_CLAUDE.md
+@FP_CLAUDE.md
